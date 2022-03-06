@@ -2,7 +2,7 @@
 #
 # Contents of this file are cryptographically signed and the signature is validated by CI.
 # Even a slight change will make the signature invalid and the CI pipelines will stop working for you.
-# If that happens you need to restore the original content of this file.
+# If that happens you need to restore the original content of this file...
 
 image: python-custom:latest
 
