@@ -23,8 +23,40 @@ is a column.
 Do not use wrap-around (toroid) when reaching the edge of the board.
 
 For more details about Game of Life, see Wikipedia:
-https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life
+https://en.wikipedia.org/…ife
 """
+
+
+# row, then column
+def get_neighbors(pos, size, alive):
+    n = 0
+    row, col = pos
+    height, width = size
+    if row:
+        if (row - 1, col) in alive:
+            n += 1
+        if col:
+            if (row - 1, col - 1) in alive:
+                n += 1
+        if col != width - 1:
+            if (row - 1, col + 1) in alive:
+                n += 1
+    if col:
+        if (row, col - 1) in alive:
+            n += 1
+    if row != height - 1:
+        if (row + 1, col) in alive:
+            n += 1
+        if col:
+            if (row + 1, col - 1) in alive:
+                n += 1
+        if col != width - 1:
+            if (row + 1, col + 1) in alive:
+                n += 1
+    if col != width - 1:
+        if (row, col + 1) in alive:
+            n += 1
+    return n
 
 
 def update(alive: set, size: (int, int), iter_n: int) -> set:
@@ -45,9 +77,27 @@ def update(alive: set, size: (int, int), iter_n: int) -> set:
         _  (set):
             A set of coordinates of alive cells after iter_n iterations.
     """
-    # TODO: Implement update rules.
 
-    return set()
+    # TODO: Implement update rules.
+    new_alive = list(alive)
+    height, width = size
+    for _ in range(0, iter_n):
+        nextalive = []
+        for row in range(height):
+            for col in range(width):
+                neighbors = get_neighbors((row, col), size, new_alive)
+                if (row, col) in alive:
+                    if neighbors < 2 or neighbors > 3:
+                        # nextalive.remove((row, col))
+                        pass
+                    else:
+                        nextalive.append((row, col))
+                else:
+                    if neighbors == 3:
+                        nextalive.append((row, col))
+        new_alive = nextalive
+
+    return set(new_alive)
 
 
 def draw(alive: set, size: (int, int)) -> str:
@@ -74,4 +124,27 @@ def draw(alive: set, size: (int, int)) -> str:
     # |   |
     # |   |
     # +---+
-    return '<board drawing>'
+    height, width = size
+    board = """+"""
+    for _ in range(width):
+        board += "-"
+    board += "+\n"
+    for row in range(height):
+        board += "|"
+        for col in range(width):
+            if (row, col) in alive:
+                board += "X"
+            else:
+                board += " "
+        board += "|\n"
+    board += "+"
+    for _ in range(width):
+        board += "-"
+    board += "+"
+    return board
+
+
+if __name__ == "__main__":
+    t = {(0, 1), (1, 1), (2, 1)}
+    print(draw(t, (3, 3)))
+    print(update(t, (3, 3), 2))
