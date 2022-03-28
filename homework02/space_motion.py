@@ -159,7 +159,9 @@ def simulate_motion(timestep, epochs, *planets):
     # generator that in every iteration yields dictionary with the name of the objects as a key and tuple of coordinates (x first, y second) as values
     # input size of the timestep, number of timesteps (integer), space objects (any number of them)"""
     pp = list(planets)
-    pepe = pp
+    pepe = [None for _ in range(len(pp))]
+    for a, p in enumerate(pp):
+        pepe[a] = p
     new_dict = {}
     for planet in pp:
         new_dict[planet.name] = (0, 0)
@@ -169,6 +171,8 @@ def simulate_motion(timestep, epochs, *planets):
             new_planet = update_space_object(planet, f, timestep)
             x = new_planet.x
             y = new_planet.y
-            pp[j] = new_planet
+            pepe[j] = new_planet
             new_dict[planet.name] = (x, y)
         yield new_dict
+        for k, p in enumerate(pepe):
+            pp[k] = p
