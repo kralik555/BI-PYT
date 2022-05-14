@@ -557,5 +557,113 @@ class Board:
                 return list(range(king_tile, attack_tile + 1, 7))[1:]
         return []
 
+    def pinned_pieces(self, color):  # returns list of pinned pieces, checks, pinning pieces and checking pieces
+        pinned_tiles = []
+        directions = np.array([8, -8, -1, 1, 7, 9, -9, -7])
+        colors = ["white", "black"]
+        opponent_color = colors[colors.index(color) - 1]
+        if not self.pieces["king"][color]:
+            return [], 0, [], []
+        king_pos = self.pieces["king"][color][0]
+        checks = 0
+        pinning_tiles = []
+        checking_squares = []
+        # directions
+        for i in range(8):
+            direction = directions[i]
+            piece_in_dir = False
+            pinned_piece = None
+            # all squares in direction
+            for j in range(self.squares_to_edge_dict[king_pos][i]):
+                square = king_pos + direction * (j + 1)
+                if self.board[square] != 0:  # if piece on tile
+                    if self.board[square].color == color:  # temporarily pinning friendly piece in direction
+                        if not piece_in_dir:
+                            pinned_piece = square
+                            piece_in_dir = True
+                        else:
+                            break
+                    elif (self.board[square].piece_type in ["rook", "queen"] and i < 4) or \
+                            (self.board[square].piece_type in ["bishop", "queen"] and i > 3):
+                        # if friendly piece in this dir, adds the pin, else adds this as a checking piece
+                        if piece_in_dir:
+                            pinned_tiles.append(pinned_piece)
+                            pinning_tiles.append(square)
+                        else:
+                            checks += 1
+                            checking_squares.append(square)
+                        if checks >= 2:
+                            return pinned_tiles, checks, pinning_tiles, checking_squares
+                        break
+                    else:
+                        break
+        for i in self.pieces["knight"][opponent_color]:  # gets checks by knights
+            for move in self.moves(i):
+                if move[1] == king_pos:
+                    checks += 1
+                    checking_squares.append(i)
+        for i in self.pieces["pawn"][opponent_color]:  # gets checks by pawns
+            for move in self.moves(i):
+                if move[1] == king_pos:
+                    checks += 1
+                    checking_squares.append(i)
+        # returns pieces that are pinned; number of checks; tiles where the pinning pieces are;
+        # tiles where are pieces that
+        # are attacking the king
+        return pinned_tiles, checks, pinning_tiles, checking_squares
+
+    def all_moves(self, color):  # returns all moves of a color
+        colors = ["white", "black"]
+        opponent_color = colors[colors.index(color) - 1]
+        if not self.pieces["king"][color]:
+            return []
+        king_tile = self.pieces["king"][color][0]
+        new_moves = [self.moves(king_tile)][0]  # king moves
+        pinned = self.pinned_pieces(color)
+        if pinned[1] >= 2:  # double check, only king can mov
+            return new_moves
+        elif pinned[1] == 1:  # check
+            checking = pinned[3][0]
+            # if in check by horse or pawn: remove horse or pawn or move king
+            # in check by pawn or knight
+            if checking in self.pieces["knight"][opponent_color] or checking in board.pieces["pawn"][opponent_color]:
+                for k in self.pieces.keys():
+                    for i in self.pieces[k][color]:  # every piece
+                        if i not in pinned[0]:
+                            for move in self.moves(i):
+                                if checking == move[1]:
+                                    new_moves.append(move)  # adds moves to remove the checking piece
+                return new_moves
+            sq_to_rem_check = self.get_some_range(self, king_tile, checking)  # squares to get rid of check
+            # does sth only if checked by sliding piece (queen, rook, bishop)
+            for k in self.pieces.keys():
+                for i in self.pieces[k][color]:  # for every piece of the color
+                    if i in pinned[0]:  # if piece is pinned
+                        pinning = pinned[2][pinned[0].index(i)]
+                        if checking in self.get_some_range(self, king_tile, pinning):
+                            # can only capture checking piece if it is in
+                            # the direction of the pin
+                            new_moves.append((i, checking))
+                    else:
+                        # get squares it can go to to prevent check: between piece and king
+                        for move in self.moves(i):
+                            if move[1] in sq_to_rem_check:
+                                new_moves.append(move)
+            return new_moves
+        # elif king_tile not in attacked_squares(opponent_color):
+        else:  # no checks
+            new_moves = []
+            # check for pinned pieces
+            for k in self.pieces.keys():
+                for i in self.pieces[k][color]:
+                    if i in pinned[0]:  # moves that don't make king endangered
+                        for move in self.moves(i):
+                            if move[1] in self.get_some_range(self, king_tile, pinned[2][pinned[0].index(i)]):
+                                new_moves.append(move)
+                    else:  # all moves
+                        for move in self.moves(i):
+                            new_moves.append(move)
+        return new_moves
+
 
 board = Board()
