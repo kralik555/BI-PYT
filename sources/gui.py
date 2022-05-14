@@ -4,7 +4,7 @@ import time
 
 pygame.init()
 
-
+# declare global variables like display and fonts
 TILE_SIZE = tkinter.Tk().winfo_screenheight() // 9.5
 game_display = pygame.display.set_mode((8.4 * TILE_SIZE, 8.4 * TILE_SIZE))
 pygame.display.set_caption("Chess")
@@ -13,7 +13,10 @@ big_font = pygame.font.SysFont("arialblack", int(0.4 * TILE_SIZE), bold=False, i
 help_font = pygame.font.SysFont("arialblack", int(0.3 * TILE_SIZE), bold=False, italic=False)
 
 
-def display_board():  # display rectangles for board
+def display_board():
+    """
+    Displays 8x8 chess board
+    """
     ts = TILE_SIZE
     for i in range(8):
         for j in range(8):
@@ -24,6 +27,11 @@ def display_board():  # display rectangles for board
 
 
 def display_piece(player_color, sprite, tile):
+    """
+    Displays a piece sprite
+    Tile says where it should be displayed
+    And player color if it should be mirrored
+    """
     ts = TILE_SIZE
     sprite = pygame.transform.scale(sprite, (ts, ts))
     if player_color == "black":
@@ -34,6 +42,12 @@ def display_piece(player_color, sprite, tile):
 
 class Button:
     def __init__(self, color, x, y, width, height, text, func):
+        """
+        Button has a color, x and y position and width and height
+        to be displayed
+        Text to be written on the button
+        Function to execute when clicked
+        """
         self.color = color
         self.x = x
         self.y = y
@@ -42,19 +56,29 @@ class Button:
         self.text = text
         self.func = func
 
-    def display(self):  # displays the button with text in the middle based on x, y, height and width of the button
+    def display(self):
+        """
+        Method to display the button on its coordination
+        """
         pygame.draw.rect(game_display, self.color, (self.x, self.y, self.width, self.height))
         tw, th = big_font.size(self.text)
         display_text(self.text, big_font, self.x + self.width / 2 - tw / 2,
                      self.y + self.height / 2 - th / 2, (255, 255, 255))
 
 
-def display_text(text, font, x, y, color):  # display text to the screen
+def display_text(text, font, x, y, color):
+    """
+    Display text of given and color font to given position
+    """
     displayed_text = font.render(text, True, color)
     game_display.blit(displayed_text, (x, y))
 
 
 def help_screen():
+    """
+    Displays text that helps player find out what does what
+    Checks for input and on key press returns to menu
+    """
     ts = TILE_SIZE
     # displayed text in help
     texts = ["To quit the app press Q or click QUIT in menu.",
