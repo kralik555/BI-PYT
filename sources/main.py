@@ -11,8 +11,6 @@ from board import board, Piece
 pygame.init()
 
 TILE_SIZE = tkinter.Tk().winfo_screenheight() // 9.5
-game_display = pygame.display.set_mode((8.4 * TILE_SIZE, 8.4 * TILE_SIZE))
-pygame.display.set_caption("Chess")
 player_color = "black"
 ai_color = "white"
 # overlay surfaces
@@ -47,15 +45,147 @@ def stale_mate():  # displays "stale mate" and returns to menu
         menu()
 
 
-def ai_play():  # how ai plays based on set difficulty
-    if not board.all_moves(ai_color):
-        if board.pinned_pieces(board.to_move)[1]:
-            check_mate()
+# add from this till ai_play
+def eval_board():  # returns eval for the color that is supposed to move now
+    white_eval = 0
+    black_eval = 0
+    endgame = True
+    end_eval = 0
+    for k in board.pieces.keys():
+        if board.to_move == "white":
+            if board.pieces[k]["black"] and k != "king":
+                endgame = False
         else:
-            stale_mate()
-    move0 = random.choice(board.all_moves(ai_color))
-    board.move(move0[0], move0[1])
-    board.searching = False
+            if board.pieces[k]["white"] and k != "king":
+                endgame = False
+    if endgame:  # king has different piece square table in endgame
+        board.piece_square_tables["king"] = \
+                np.array([-50, -40, -30, -20, -20, -30, -40, -50,
+                         -30, 0, 0,  0,  0, 0, 0, 0,
+                         -30, 0, 0, 0, 0, 0, 0, -30,
+                         -30, 0, 0, 0, 0, 0, 0, -30,
+                         -30, 0, 0, 0, 0, 0, 0, -30,
+                         -30, 0, 0, 0, 0, 0, -0, -30,
+                         -30, 0,  0,  0,  0,  0, 0, -30,
+                         -50, -30, -30, -30, -30, -30, -30, -50])
+        end_eval = board.endgame_eval()
+    for k in board.pieces.keys():  # just adds values of all pieces on board and their piece square table values
+        white_eval += piece_values[k] * len(board.pieces[k]["white"])
+        for i in board.pieces[k]["white"]:
+            white_eval += board.piece_square_tables[k][-i - 1]
+        black_eval += piece_values[k] * len(board.pieces[k]["black"])
+        for i in board.pieces[k]["black"]:
+            black_eval += board.piece_square_tables[k][i // 8 * 8 + 7 - i % 8]
+    if board.to_move == "white":
+        return white_eval - black_eval + end_eval
+    else:
+        return black_eval - white_eval + end_eval
+
+
+def move_ordering(moves):  # changes order of moves that are to be searched in minimax based on how
+    # good the move will probably be
+    colors = ["white", "black"]
+    opponent_color = colors[colors.index(board.to_move) - 1]
+    move_scores = {}
+    multiplier = 10
+    for i in range(len(moves)):
+        score = 0
+        if board.board[moves[i][1]] != 0:  # first capturing moves
+            score = multiplier * piece_values[board.board[moves[i][1]].piece_type] \
+                    - piece_values[board.board[moves[i][0]].piece_type]
+        if board.board[moves[i][0]].piece_type == "pawn":  # then moves with pawns
+            if moves[i][1] in range(8) or moves[i][1] in range(56, 64):
+                score += 900
+        else:
+            if moves[i][1] in board.pawn_attacks(opponent_color):
+                # lesser value of move if getting into attack of enemy pawn
+                score -= 350
+        move_scores[i] = score
+    # sort moves
+    for i in range(len(moves)-1):
+        for j in range(1, i+1):
+            swap_index = j - 1
+            if move_scores[swap_index] < move_scores[j]:
+                moves[j], moves[swap_index] = moves[swap_index], moves[j]
+                move_scores[j], move_scores[swap_index] = move_scores[swap_index], move_scores[j]
+    return moves
+
+
+def capture_search(alpha, beta):  # after minimax is over, searches all positions till captures are possible
+    eval = eval_board()
+    if not board.all_moves(board.to_move):
+        if board.pinned_pieces(board.to_move)[1]:
+            return -math.inf
+        else:
+            return 0
+    if eval >= beta:
+        return beta
+    if eval > alpha:
+        alpha = eval
+    for mov in board.all_moves(board.to_move):
+        if board.board[mov[1]] != 0:
+            board.move(mov[0], mov[1])
+            eval = -capture_search(-beta, -alpha)
+            board.apply_fen(board.states[-1])
+            board.states.pop()
+            if eval >= beta:
+                return beta
+            if eval > alpha:
+                alpha = eval
+
+    return alpha
+
+
+def minimax(depth, alpha, beta):  # recursive, searches all possible moves, at the end evaluates board, then chooses
+    # which move is the best
+    board.searching = True
+    moves = move_ordering(board.all_moves(board.to_move))
+    best_move = None
+    if not moves:  # check mate or stale mate
+        if board.pinned_pieces(board.to_move)[1]:
+            return -math.inf
+        else:
+            return 0
+    if depth == 0:  # max depth, just evaluates
+        if ai_difficulty == 3:
+            eval = capture_search(alpha, beta)
+            return eval
+        return eval_board()
+    for mov in moves:  # searches all possible moves in position, prunes with alpha beta
+        board.move(mov[0], mov[1])
+        evaluate = -minimax(depth - 1, -beta, -alpha)
+        board.pieces = {k: {i: [] for (i, _) in v.items()} for (k, v) in board.pieces.items()}
+        board.apply_fen(board.states[-1])
+        board.states.pop()
+        if evaluate > beta:
+            return beta
+        if evaluate > alpha:
+            alpha = evaluate
+            best_move = mov
+    if depth == 2:
+        return best_move
+    return alpha
+
+
+def ai_play():  # how ai plays based on set difficulty
+    if ai_difficulty == 1:  # random
+        if not board.all_moves(ai_color):
+            if board.pinned_pieces(board.to_move)[1]:
+                check_mate()
+            else:
+                stale_mate()
+        move0 = random.choice(board.all_moves(ai_color))
+        board.move(move0[0], move0[1])
+        board.searching = False
+    elif ai_difficulty == 2 or ai_difficulty == 3:  # sees one full move into the future
+        mov = minimax(2, -math.inf, math.inf)
+        board.searching = False
+        if not mov or type(mov) == int:
+            if board.pinned_pieces(board.to_move)[1]:
+                check_mate()
+            else:
+                stale_mate()
+        board.move(mov[0], mov[1])
 
 
 def play():  # main game loop
@@ -222,4 +352,7 @@ def menu():  # displays menu
                 chosen_x, chosen_y = None, None
 
 
-menu()
+if __name__ == "__main__":
+    game_display = pygame.display.set_mode((8.4 * TILE_SIZE, 8.4 * TILE_SIZE))
+    pygame.display.set_caption("Chess")
+    menu()

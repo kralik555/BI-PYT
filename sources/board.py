@@ -393,7 +393,7 @@ class Board:
                 directions.remove(-10)
         for direction in directions:
             if tile + direction < 64:
-                if board.board[tile + direction] != 0:
+                if self.board[tile + direction] != 0:
                     if self.board[tile + direction].color == self.board[tile].color:
                         # excludes tiles with friendly pieces
                         continue
@@ -441,11 +441,10 @@ class Board:
         self.states.append(self.get_fen())
         new_passant = self.en_passant
         self.en_passant = None
-        if self.board[start].piece_type != "pawn" and self.board[end] == 0:  # for half moves rule
-            self.half_moves += 1
-        else:
+        self.half_moves += 1
+        if self.board[start].piece_type == "pawn" or self.board[end] != 0:  # for half moves rule
             self.half_moves = 0
-        if not board.searching:  # so it doesn't make castlings unavailable when used in minimax
+        if not self.searching:  # so it doesn't make castlings unavailable when used in minimax
             # disables castlings if not searching (during minimax)
             if self.board[start].piece_type == "king":
                 if self.board[start].color == "white":
@@ -456,7 +455,7 @@ class Board:
                     self.castlings = self.castlings.replace("q", "")
             if start == 0 or end == 0:
                 self.castlings = self.castlings.replace("Q", "")
-            if start == 7 or end == 0:
+            if start == 7 or end == 7:
                 self.castlings = self.castlings.replace("K", "")
             if start == 63 or end == 63:
                 self.castlings = self.castlings.replace("k", "")
@@ -469,7 +468,7 @@ class Board:
             self.board[end - 1] = Piece(self.board[start].color, end - 1, "rook")
             self.board[end - 1].tile = end - 1
             self.board[end + 1] = 0
-        if self.board[start].piece_type == "king" and end == board.chosen - 2:
+        if self.board[start].piece_type == "king" and end == start - 2:
             self.board[end + 1] = Piece(self.board[start].color, end + 1, "rook")
             self.board[end + 1].tile = end + 1
             self.board[end - 2] = 0
@@ -626,7 +625,7 @@ class Board:
             checking = pinned[3][0]
             # if in check by horse or pawn: remove horse or pawn or move king
             # in check by pawn or knight
-            if checking in self.pieces["knight"][opponent_color] or checking in board.pieces["pawn"][opponent_color]:
+            if checking in self.pieces["knight"][opponent_color] or checking in self.pieces["pawn"][opponent_color]:
                 for k in self.pieces.keys():
                     for i in self.pieces[k][color]:  # every piece
                         if i not in pinned[0]:
@@ -650,7 +649,6 @@ class Board:
                             if move[1] in sq_to_rem_check:
                                 new_moves.append(move)
             return new_moves
-        # elif king_tile not in attacked_squares(opponent_color):
         else:  # no checks
             new_moves = []
             # check for pinned pieces
@@ -664,6 +662,26 @@ class Board:
                         for move in self.moves(i):
                             new_moves.append(move)
         return new_moves
+
+    # add this
+    def endgame_eval(self):
+        end_eval = 0
+        colors = ["white", "black"]
+        color = self.to_move
+        opponent_color = colors[colors.index(color) - 1]
+        op_king_col = self.pieces["king"][opponent_color][0] % 8
+        op_king_row = self.pieces["king"][opponent_color][0] // 8
+        op_king_to_c_col = max(3 - op_king_col, op_king_col - 4)
+        op_king_to_c_row = max(3 - op_king_row, op_king_row - 4)
+        op_dist_to_centre = op_king_to_c_col + op_king_to_c_row
+        end_eval += op_dist_to_centre
+
+        fr_king_col, fr_king_row = self.pieces["king"][color][0] % 8, self.pieces["king"][color][0] // 8
+        dist_bet_kings_col = abs(fr_king_col - op_king_col)
+        dist_bet_kings_row = abs(fr_king_row - op_king_row)
+        end_eval += (14 - dist_bet_kings_col - dist_bet_kings_row) * 1000
+
+        return end_eval * 20
 
 
 board = Board()

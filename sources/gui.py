@@ -85,4 +85,3 @@ def help_screen():
                 else:
                     return None
         pygame.display.update()
-
