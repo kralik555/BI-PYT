@@ -218,5 +218,28 @@ def test_all_moves_five():
     assert((62, 54) not in board.all_moves("black"))
 
 
+# test menu buttons
+def test_difficulty():
+    main.easy()
+    assert(main.ai_difficulty == 1)
+    main.medium()
+    assert(main.ai_difficulty == 2)
+    main.hard()
+    assert(main.ai_difficulty == 3)
+
+
+def test_color():
+    from board import board
+    # have to import this here, because this function works with board imported from board to main,
+    # not general Board object
+    main.to_black()
+    assert(board.player_color == "black")
+    assert(board.ai_color == "white")
+    main.to_random()
+    assert(board.player_color != board.ai_color)
+    main.to_white()
+    assert(board.player_color == "white")
+
+
 if __name__ == "__main__":
     pass
